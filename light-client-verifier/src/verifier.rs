@@ -337,6 +337,57 @@ mod tests {
     }
 
     #[test]
+    fn test_verification_success() {
+        let now = Time::now();
+
+        // let mut file = File::open("light_blocks/light_block_1.json").unwrap();
+
+        // Create a default light block with a valid chain-id for height `1` with a timestamp 20
+        // secs before now (to be treated as trusted state)
+        let light_block_1: LightBlock = TestgenLightBlock::new_default_with_time_and_chain_id(
+            "chain-1".to_owned(),
+            now.sub(Duration::from_secs(60)).unwrap(),
+            1u64,
+        )
+        .generate()
+        .unwrap()
+        .into();
+
+        // Write to the file
+        // file.write_all(light_block_1)?;
+
+        // Create another default block with a different chain-id for height `2` with a timestamp 10
+        // secs before now (to be treated as untrusted state)
+        let light_block_2: LightBlock = TestgenLightBlock::new_default_with_time_and_chain_id(
+            "chain-1".to_owned(),
+            now.sub(Duration::from_secs(10)).unwrap(),
+            2u64,
+        )
+        .generate()
+        .unwrap()
+        .into();
+
+        let vp = ProdVerifier::default();
+        let opt = Options {
+            trust_threshold: Default::default(),
+            trusting_period: Duration::from_secs(60),
+            clock_drift: Default::default(),
+        };
+
+        let verdict = vp.verify_update_header(
+            light_block_2.as_untrusted_state(),
+            light_block_1.as_trusted_state(),
+            &opt,
+            Time::now(),
+        );
+
+        match verdict {
+            Verdict::Success => {},
+            v => panic!("expected success, got: {:?}", v),
+        }
+    }
+
+    #[test]
     fn test_verification_failure_on_chain_id_mismatch() {
         let now = Time::now();
 
